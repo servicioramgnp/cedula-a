@@ -5,7 +5,7 @@ Simulador del examen de capacidad técnica de la CNSF (Categoría A) con registr
 | Archivo | Para qué sirve | Dónde va |
 |---|---|---|
 | `index.html` | Simulador para los sustentantes | GitHub |
-| `admin.html` | Tablero de resultados (solo coordinación, con clave) | GitHub |
+| `admin.html` | Tablero de resultados y control de accesos (solo coordinación, con clave) | GitHub |
 | `banco.js` | Banco de 243 reactivos y estructura del examen | GitHub |
 | `gar.css` | Estilos con la imagen GAR | GitHub |
 | `logo-gar.png` | Logo | GitHub |
@@ -42,9 +42,22 @@ En `index.html` también puedes editar la lista `GRUPOS` que ven los sustentante
    - Simulador: `https://servicioramgnp.github.io/cedula-a/`
    - Tablero: `https://servicioramgnp.github.io/cedula-a/admin.html`
 
+## Accesos (correo + PIN)
+
+Solo entra quien tú das de alta. En `admin.html` › pestaña **Accesos**:
+
+- **Dar de alta:** nombre, correo y grupo. El PIN de 6 dígitos se genera solo (o escribes uno).
+- **Alta de varios:** pega una persona por renglón (`Nombre, correo, grupo`) o tres columnas copiadas de Excel/Sheets.
+- **Bienvenida:** arma el mensaje con la liga, el correo y el PIN; cópialo o ábrelo en WhatsApp.
+- **Nuevo PIN:** invalida el anterior (por si lo olvidó o lo compartió).
+- **Suspender / Reactivar:** quien está suspendido no puede entrar ni enviar resultados; su historial se conserva.
+- Tras 6 PIN incorrectos seguidos, ese correo queda bloqueado 15 minutos.
+
+Todo queda en la pestaña **Sustentantes** de la hoja; editarla a mano también funciona (columna Activo: Sí/No).
+
 ## Uso diario
 
-- **Sustentantes:** se registran una vez con nombre, correo y grupo. Cada simulacro o práctica terminada se envía a la hoja. Si no hay internet, el resultado queda guardado y se envía después.
+- **Sustentantes:** entran con su correo y PIN. Cada simulacro o práctica terminada se envía a la hoja. Si no hay internet, el resultado queda guardado y se envía después.
 - **Tablero:** entra con tu clave. Ves a cada sustentante con su último resultado por prueba, su estado, el dominio por tema del equipo y los reactivos que más se fallan. Toca a una persona para ver su historial. «Exportar CSV» descarga los intentos filtrados.
 - **Borrar pruebas:** desde el historial de cada persona («Eliminar») o borrando la fila en la hoja.
 

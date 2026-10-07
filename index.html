@@ -280,11 +280,15 @@ const Sync = {
     this.state="sending"; paintSync();
     for(const it of cola.slice()){
       try{
-        const r=await fetch(CONFIG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"guardarIntento",intento:it})});
-        const j=await r.json();
-        if(!j.ok) throw new Error(j.error||"Error del servidor");
+        const p=perfil(), cred=(p&&p.correo===it.correo)?{correo:p.correo,pin:p.pin}:{correo:it.correo,pin:it.pin};
+        const {pin,...limpio}=it;
+        await api("guardarIntento",{...cred,intento:limpio});
         cola=this.cola().filter(x=>x.id!==it.id); store.set("cola",cola);
-      }catch(e){ this.state="queued"; this.err=/fetch|network|offline|conexi/i.test(e.message)?"sin conexión":e.message; paintSync(); return; }
+      }catch(e){
+        this.state="queued"; this.err=e.message; paintSync();
+        if(/^ACCESO_(INVALIDO|SUSPENDIDO)$/.test(e.code)&&perfil()&&perfil().correo===it.correo&&S.view!=="exam"&&S.view!=="practice") salir(e.message+" Tu resultado pendiente se enviará cuando vuelvas a entrar.");
+        return;
+      }
     }
     this.state="ok"; paintSync();
   }
@@ -302,7 +306,18 @@ function paintSync(){ const el=$("#sync"); if(el) el.outerHTML=syncHTML(); }
 // ── estado ──
 let S={view:"home"}; let lastKey=null; let tick=null;
 const PRACTICE_SEL=new Set(["mj"]);
-const perfil=()=>store.get("perfil",null);
+const perfil=()=>{ const p=store.get("perfil",null); return p&&(!CONFIG.API_URL||p.pin)?p:null; };
+const uk=k=>k+":"+((perfil()||{}).correo||"");
+const ERRMSG={ACCESO_INVALIDO:"Correo o PIN incorrectos.",ACCESO_SUSPENDIDO:"Tu acceso está suspendido. Habla con tu coordinador de GAR.",ACCESO_BLOQUEADO:"Demasiados intentos con PIN incorrecto. Espera 15 minutos o pide un PIN nuevo a tu coordinador."};
+async function api(action,params={}){
+  let r,j;
+  try{ r=await fetch(CONFIG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...params})}); }
+  catch(e){ const x=new Error("sin conexión"); x.red=true; throw x; }
+  try{ j=await r.json(); }catch(e){ throw new Error("El servidor respondió algo inesperado."); }
+  if(!j.ok){ const x=new Error(ERRMSG[j.error]||j.error); x.code=j.error; throw x; }
+  return j.data;
+}
+function salir(msg){ setTimer(false); store.set("perfil",null); S.loginMsg=msg||""; S.view="home"; render(); }
 
 function setTimer(on){
   clearInterval(tick); $("#timer").hidden=!on; if(!on) return;
@@ -312,17 +327,18 @@ function setTimer(on){
 
 function render(){
   const p=perfil();
-  if(!p && S.view!=="registro"){ S.after=S.view; S.view="registro"; }
+  if(!p && S.view!=="registro"){ S.after=S.view==="registro"?"home":S.view; S.view="registro"; }
   const key=[S.view,S.run&&S.run.bi,S.view==="exam"&&S.run.blocks[S.run.bi].cur,S.view==="practice"&&S.prac.cur].join(":");
   if(key!==lastKey){ window.scrollTo(0,0); lastKey=key; }
   const v={home:homeHTML,registro:registroHTML,intro:introHTML,exam:examHTML,blockdone:blockDoneHTML,results:resultsHTML,practice:practiceHTML}[S.view];
   $("#app").innerHTML=v();
   const chip=$("#user-chip");
   chip.hidden=!p||S.view==="exam"||S.view==="practice"||S.view==="registro";
-  if(p) chip.innerHTML=`<span class="lbl">Sustentante:</span><b>${esc(p.nombre.split(" ")[0])}</b><button data-act="perfil">Cambiar</button>`;
+  if(p) chip.innerHTML=`<span class="lbl">Sustentante:</span><b>${esc(p.nombre.split(" ")[0])}</b>${CONFIG.API_URL?`<button data-act="salir">Salir</button>`:`<button data-act="perfil">Cambiar</button>`}`;
 }
 
 function registroHTML(){
+  if(CONFIG.API_URL) return loginHTML();
   const p=perfil()||{};
   const otros=p.grupo&&!CONFIG.GRUPOS.includes(p.grupo);
   return `<section class="auth"><form class="card" id="reg" novalidate>
@@ -338,8 +354,23 @@ function registroHTML(){
   </form></section>`;
 }
 
+function loginHTML(){
+  const prev=store.get("perfil",null)||{};
+  return `<section class="auth"><form class="card" id="login" novalidate>
+    <img class="gar-logo" src="logo-gar.png" alt="Grupo Asesores RAM">
+    <div><div class="eyebrow">Simulador Cédula A</div><h1 style="margin-top:.35rem">Entra con tu correo y PIN</h1>
+    <p class="muted small" style="margin-top:.45rem">Tu coordinador de GAR te dio un PIN de 6 dígitos. Tus resultados le llegan para darte seguimiento en tu preparación.</p></div>
+    ${S.loginMsg?`<div class="banner warn">${esc(S.loginMsg)}</div>`:""}
+    <label class="f">Correo electrónico<input class="in" id="l-correo" type="email" autocomplete="email" inputmode="email" value="${esc(prev.correo||"")}" required></label>
+    <label class="f">PIN<input class="in" id="l-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" style="letter-spacing:.4em;font-size:1.2rem;max-width:12rem" required></label>
+    <p class="small" id="l-err" style="color:var(--bad)" hidden></p>
+    <button class="btn primary" type="submit" id="l-btn">Entrar</button>
+    <p class="muted small">¿No tienes PIN o lo olvidaste? Pídeselo a tu coordinador.</p>
+  </form></section>`;
+}
+
 function stats(){
-  const hist=store.get("hist",[]); const agg={}; TEMAS.forEach(t=>agg[t.id]={ok:0,n:0});
+  const hist=store.get(uk("hist"),[]); const agg={}; TEMAS.forEach(t=>agg[t.id]={ok:0,n:0});
   hist.forEach(h=>Object.entries(h.temas||{}).forEach(([k,v])=>{ if(agg[k]){agg[k].ok+=v[0];agg[k].n+=v[1]} }));
   return {hist,agg};
 }
@@ -349,7 +380,7 @@ function barHTML(name,p,extra=""){
 
 function homeHTML(){
   const {hist,agg}=stats(); const p=perfil();
-  const errs=store.get("errs",[]).filter(id=>bankById[id]);
+  const errs=store.get(uk("errs"),[]).filter(id=>bankById[id]);
   const total=MODULES.reduce((s,m)=>s+m.temas.reduce((a,t)=>a+t.n,0),0), mins=MODULES.reduce((s,m)=>s+modTime(m),0);
   const pend=Sync.cola().length;
   return `
@@ -543,12 +574,12 @@ function saveRun(){
   const isPr=r.mode==="practice";
   const mods=isPr?[]:r.blocks.map((b,i)=>({id:b.mod.id,ok:grades[i].ok,n:grades[i].n}));
   const ok=grades.reduce((s,g)=>s+g.ok,0), n=grades.reduce((s,g)=>s+g.n,0);
-  const hist=store.get("hist",[]); hist.push({date:r.date,label:isPr?"Práctica":r.label,mods,ok,n,temas}); store.set("hist",hist.slice(-80));
-  const errs=new Set(store.get("errs",[])); const vistos=[], fallados=[];
+  const hist=store.get(uk("hist"),[]); hist.push({date:r.date,label:isPr?"Práctica":r.label,mods,ok,n,temas}); store.set(uk("hist"),hist.slice(-80));
+  const errs=new Set(store.get(uk("errs"),[])); const vistos=[], fallados=[];
   r.blocks.forEach(b=>b.qs.forEach((q,i)=>{ if(q.gen) return; vistos.push(q.id); if(b.ans[i]===q.correct) errs.delete(q.id); else { errs.add(q.id); fallados.push(q.id); } }));
-  store.set("errs",[...errs]);
+  store.set(uk("errs"),[...errs]);
   Sync.state="idle";
-  Sync.enviar({id:uid(), nombre:p.nombre, correo:p.correo, grupo:p.grupo, tipo:isPr?"Práctica":r.label, modulos:mods, temas, aciertos:ok, reactivos:n,
+  Sync.enviar({id:uid(), nombre:p.nombre, correo:p.correo, pin:p.pin, grupo:p.grupo, tipo:isPr?"Práctica":r.label, modulos:mods, temas, aciertos:ok, reactivos:n,
     duracionSeg:Math.round((Date.now()-r.started)/1000), vistos, fallados, tiempoAgotado:r.blocks.filter(b=>b.timeout).map(b=>b.mod.id)});
 }
 function startPractice(qs,label){
@@ -568,7 +599,22 @@ function closeModal(){ $("#layer").innerHTML=""; }
 let toastT; function toast(m){ clearTimeout(toastT); let el=$(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)} el.textContent=m; toastT=setTimeout(()=>el.remove(),2800); }
 
 // ── eventos ──
-document.addEventListener("submit",e=>{
+document.addEventListener("submit",async e=>{
+  if(e.target.id==="login"){
+    e.preventDefault();
+    const correo=$("#l-correo").value.trim().toLowerCase(), pin=$("#l-pin").value.trim(), err=$("#l-err"), btn=$("#l-btn");
+    const fail=m=>{err.textContent=m;err.hidden=false;btn.disabled=false;btn.textContent="Entrar"};
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return fail("Revisa tu correo electrónico.");
+    if(!/^\d{6}$/.test(pin)) return fail("El PIN tiene 6 dígitos.");
+    btn.disabled=true; btn.textContent="Entrando…";
+    try{
+      const u=await api("acceso",{correo,pin});
+      store.set("perfil",{...u,pin}); S.loginMsg="";
+      S.view=(S.after&&S.after!=="registro")?S.after:"home"; S.after=null; render();
+      Sync.vaciar().then(()=>{ if(S.view==="home") render(); });
+    }catch(x){ fail(x.red?"No hay conexión. Revisa tu internet e inténtalo de nuevo.":x.message); }
+    return;
+  }
   if(e.target.id!=="reg") return; e.preventDefault();
   const nombre=$("#r-nombre").value.trim().replace(/\s+/g," "), correo=$("#r-correo").value.trim().toLowerCase();
   let grupo=$("#r-grupo").value; if(grupo==="__otro") grupo=$("#r-otro").value.trim();
@@ -585,6 +631,7 @@ document.addEventListener("click",e=>{
   if(act==="scrim"){ if(e.target===el) closeModal(); return; }
   if(act==="close") return closeModal();
   if(act==="home"){ setTimer(false); S.view="home"; return render(); }
+  if(act==="salir") return salir("");
   if(act==="perfil"){ S.after="home"; S.view="registro"; return render(); }
   if(act==="retrysync"){ Sync.vaciar().then(()=>{ if(S.view==="home") render(); }); return; }
   if(act==="full") return startRun(MODULES);
@@ -599,7 +646,7 @@ document.addEventListener("click",e=>{
     const n=onlyCalc?0:(cnt==="all"?pool.length:Math.max(0,(+cnt)-calcN));
     return startPractice(shuffle([...pool.slice(0,n),...Array.from({length:calcN},genCalc)]), sel.map(t=>temaById[t].name).join(", "));
   }
-  if(act==="errs"){ const ids=store.get("errs",[]).filter(id=>bankById[id]); return startPractice(shuffle(ids.map(id=>bankById[id])),"Mis errores"); }
+  if(act==="errs"){ const ids=store.get(uk("errs"),[]).filter(id=>bankById[id]); return startPractice(shuffle(ids.map(id=>bankById[id])),"Mis errores"); }
   if(act==="retrywrong"){ const ws=[]; S.run.blocks.forEach(b=>b.qs.forEach((q,i)=>{ if(b.ans[i]!==q.correct&&!q.gen) ws.push(bankById[q.id]); })); return startPractice(shuffle(ws),"Reactivos fallados"); }
   if(S.view==="exam"){
     const b=S.run.blocks[S.run.bi];
@@ -646,7 +693,14 @@ document.addEventListener("keydown",e=>{
 window.addEventListener("beforeunload",e=>{ if(S.view==="exam"){ e.preventDefault(); e.returnValue=""; } });
 
 render();
-Sync.vaciar().then(()=>{ if(S.view==="home") render(); });
+(async()=>{
+  const p=perfil();
+  if(CONFIG.API_URL&&p){
+    try{ const u=await api("acceso",{correo:p.correo,pin:p.pin}); store.set("perfil",{...u,pin:p.pin}); }
+    catch(x){ if(/^ACCESO_/.test(x.code)&&S.view==="home") return salir(x.message); }
+  }
+  await Sync.vaciar(); if(S.view==="home") render();
+})();
 </script>
 </body>
 </html>

@@ -39,6 +39,14 @@ tr.rowlink{cursor:pointer} tr.rowlink:hover td{background:var(--surface-2)}
 .fail small{color:var(--muted);font-size:.74rem}
 .fail .rate{font-family:var(--mono);font-weight:600;color:var(--bad);text-align:right;font-size:.95rem}
 .fail .rate small{display:block;font-weight:500}
+.tabs{display:inline-flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;margin-top:18px}
+.tabs button{border:0;background:transparent;border-radius:999px;padding:.45rem 1.1rem;font-weight:650;font-size:.9rem;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--btn-dark);color:#fff}
+.pinbox{font-family:var(--mono);font-size:2.2rem;font-weight:600;letter-spacing:.3em;background:var(--accent-soft);color:var(--accent-ink);border-radius:var(--r-m);padding:.5rem 1rem;text-align:center}
+.pin{font-family:var(--mono);letter-spacing:.12em}
+.acts{display:flex;gap:.25rem;flex-wrap:wrap;justify-content:flex-end}
+tr.off td{opacity:.6}
+textarea.in{min-height:150px;font-family:var(--mono);font-size:.85rem}
 .dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 @media (max-width:900px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .cols,.dgrid{grid-template-columns:1fr} }
 </style>
@@ -60,7 +68,10 @@ tr.rowlink{cursor:pointer} tr.rowlink:hover td{background:var(--surface-2)}
    API_URL: la misma URL /exec que usa index.html.
    Si la dejas vacía, el tablero abre en MODO DEMOSTRACIÓN con datos ficticios.
    ═════════════════════════════════════════════════════════════════════ */
-const CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbxMP85Vt1nfOl86opVaQMcO_nLVs11MfgEwasrJSfiKGmqaQPfxlfR44Mo01qf0MNduJA/exec' };
+const CONFIG = {
+  GRUPOS: ['GAR San Luis Potosí', 'GAR Querétaro', 'Proyecto Congresistas'],
+  API_URL: 'https://script.google.com/macros/s/AKfycbxMP85Vt1nfOl86opVaQMcO_nLVs11MfgEwasrJSfiKGmqaQPfxlfR44Mo01qf0MNduJA/exec',
+};
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -72,7 +83,9 @@ const fdate=iso=>{const d=new Date(iso);return d.toLocaleDateString("es-MX",{day
 const rel=iso=>{const d=(Date.now()-new Date(iso))/864e5; if(d<1) return "hoy"; if(d<2) return "ayer"; return "hace "+Math.floor(d)+" días";};
 const ses={ get(){ try{return sessionStorage.getItem("garCedA:clave")}catch(e){return null} }, set(v){ try{v?sessionStorage.setItem("garCedA:clave",v):sessionStorage.removeItem("garCedA:clave")}catch(e){} } };
 let CLAVE=ses.get(); let DATA=null; let DEMO=!CONFIG.API_URL;
-const F={grupo:"",dias:"0",practicas:false,q:"",orden:"reciente"};
+const F={grupo:"",dias:"0",practicas:false,q:"",orden:"reciente",qs:"",gs:""};
+let TAB="resultados"; const VERPIN=new Set();
+const URL_SIM=new URL("./",location.href).href;
 
 async function api(action,params={}){
   let r,j;
@@ -101,7 +114,8 @@ function demoData(){
     }
     out.push({fecha:new Date(Date.now()-rnd()*5*864e5).toISOString(),nombre:nom,correo:mail,grupo:g,tipo:"Práctica",aciertos:14,reactivos:20,acredita:"—",duracionMin:12,id:"demoP"+k,modulos:[],temas:{hogar:[9,12],auto:[5,8]},vistos:[],fallados:[],tiempoAgotado:[]});
   });
-  return {intentos:out,generado:new Date().toISOString()};
+  const sus=names.concat([["Diego Navarro","GAR Querétaro"],["Elena Campos","GAR San Luis Potosí"]]).map(([nom,g],k)=>({id:"d"+k,nombre:nom,correo:nom.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(" ",".")+"@ejemplo.com",grupo:g,pin:String(482910+k*7351),activo:k!==8,alta:new Date(Date.now()-40*864e5).toISOString(),ultimoAcceso:k<7?new Date(Date.now()-k*2*864e5).toISOString():""}));
+  return {intentos:out,sustentantes:sus,generado:new Date().toISOString()};
 }
 
 // ── cálculo ──
@@ -147,6 +161,11 @@ function loginHTML(err=""){
   </form></section>`;
 }
 function dashHTML(){
+  return `${DEMO?`<div class="banner info" style="margin-top:18px">Modo demostración: datos ficticios. Pega la URL de tu Apps Script en CONFIG.API_URL para ver los resultados reales.</div>`:""}
+  <div class="tabs" role="tablist"><button role="tab" data-act="tab" data-id="resultados" aria-selected="${TAB==="resultados"}">Resultados</button><button role="tab" data-act="tab" data-id="accesos" aria-selected="${TAB==="accesos"}">Accesos${DATA.sustentantes?` <span class="mono" style="opacity:.7">${DATA.sustentantes.length}</span>`:""}</button></div>
+  ${TAB==="accesos"?accesosHTML():resultadosHTML()}`;
+}
+function resultadosHTML(){
   const list=filtrados(), people=porPersona(list);
   const grupos=[...new Set(DATA.intentos.map(i=>i.grupo).filter(Boolean))].sort();
   const sims=list.filter(i=>i.tipo!=="Práctica");
@@ -156,7 +175,6 @@ function dashHTML(){
   const fails=masFallados(list).slice(0,10);
   const sorted=people.slice().sort(F.orden==="nombre"?(a,b)=>a.nombre.localeCompare(b.nombre):F.orden==="avance"?(a,b)=>(a.avg??-1)-(b.avg??-1):(a,b)=>new Date(b.last)-new Date(a.last));
   return `
-  ${DEMO?`<div class="banner info" style="margin-top:18px">Modo demostración: datos ficticios. Pega la URL de tu Apps Script en CONFIG.API_URL para ver los resultados reales.</div>`:""}
   <section class="head"><div><div class="eyebrow">Actualizado ${fdate(DATA.generado)}</div><h1 style="margin-top:.3rem">Avance hacia la Cédula A</h1></div></section>
   <div class="filters">
     <label class="f">Grupo<select class="in" id="f-grupo"><option value="">Todos los grupos</option>${grupos.map(g=>`<option ${F.grupo===g?"selected":""}>${esc(g)}</option>`).join("")}</select></label>
@@ -186,6 +204,95 @@ function dashHTML(){
       ${fails.length?`<div class="fails">${fails.map(x=>`<div class="fail"><div><p>${esc(x.q.q)}</p><small>${esc(temaById[x.q.t].name)} · ${esc(x.q.s)} · Correcta: ${esc(x.q.o[0])}</small></div><div class="rate">${pct(x.r)}<small class="muted">${x.f} de ${x.v}</small></div></div>`).join("")}</div>`:`<div class="empty">Aparecerán cuando haya suficientes intentos.</div>`}</div>
   </section>`;
 }
+// ── Accesos ──
+function gruposTodos(){ return [...new Set([...CONFIG.GRUPOS,...(DATA.sustentantes||[]).map(s=>s.grupo),...DATA.intentos.map(i=>i.grupo)].filter(Boolean))]; }
+function ultimoIntento(correo){ let f=null; DATA.intentos.forEach(i=>{ if(i.correo===correo&&(!f||i.fecha>f)) f=i.fecha; }); return f; }
+function accesosHTML(){
+  if(!DATA.sustentantes) return `<div class="banner warn" style="margin-top:18px">Tu Apps Script todavía tiene la versión anterior. Pega el Codigo.gs nuevo y publica una nueva versión de la implementación para administrar accesos.</div>`;
+  const q=F.qs.trim().toLowerCase();
+  const lista=DATA.sustentantes.filter(s=>(!F.gs||s.grupo===F.gs)&&(!q||s.nombre.toLowerCase().includes(q)||s.correo.includes(q)))
+    .map(s=>({...s,ult:ultimoIntento(s.correo)})).sort((a,b)=>(b.activo-a.activo)||a.nombre.localeCompare(b.nombre));
+  const act=DATA.sustentantes.filter(s=>s.activo).length, sus=DATA.sustentantes.length-act;
+  const sinPrac=DATA.sustentantes.filter(s=>{ if(!s.activo) return false; const u=ultimoIntento(s.correo); return !u||Date.now()-new Date(u)>7*864e5; }).length;
+  return `
+  <section class="head"><div><div class="eyebrow">Control de acceso por correo y PIN</div><h1 style="margin-top:.3rem">Sustentantes</h1></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn" data-act="masiva">Alta de varios</button><button class="btn primary" data-act="alta">Dar de alta</button></div></section>
+  <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="card kpi dark"><b>${act}</b><span>con acceso activo</span></div>
+    <div class="card kpi"><b>${sinPrac}</b><span>activos sin practicar en los últimos 7 días</span></div>
+    <div class="card kpi"><b>${sus}</b><span>con acceso suspendido</span></div>
+  </div>
+  <div class="filters" style="margin-top:16px">
+    <label class="f">Grupo<select class="in" id="f-gs"><option value="">Todos los grupos</option>${gruposTodos().sort().map(g=>`<option ${F.gs===g?"selected":""}>${esc(g)}</option>`).join("")}</select></label>
+    <label class="f">Buscar<input class="in" id="f-qs" value="${esc(F.qs)}" placeholder="Nombre o correo"></label>
+  </div>
+  ${lista.length?`<div class="tablewrap"><table class="t"><thead><tr><th>Sustentante</th><th>Grupo</th><th>PIN</th><th>Estado</th><th>Último acceso</th><th>Último intento</th><th></th></tr></thead><tbody>
+    ${lista.map(s=>`<tr class="${s.activo?"":"off"}"><td class="who"><b>${esc(s.nombre)}</b><small>${esc(s.correo)}</small></td><td>${esc(s.grupo)}</td>
+      <td><button class="btn ghost sm pin" data-act="verpin" data-id="${esc(s.id)}" title="Mostrar u ocultar">${VERPIN.has(s.id)?esc(s.pin):"••••••"}</button></td>
+      <td><span class="pill ${s.activo?"ok":"none"}">${s.activo?"Activo":"Suspendido"}</span></td>
+      <td class="small">${s.ultimoAcceso?rel(s.ultimoAcceso):`<span class="muted">nunca</span>`}</td>
+      <td class="small">${s.ult?rel(s.ult):`<span class="muted">sin intentos</span>`}</td>
+      <td><div class="acts"><button class="btn ghost sm" data-act="bienv" data-id="${esc(s.id)}">Bienvenida</button><button class="btn ghost sm" data-act="editar" data-id="${esc(s.id)}">Editar</button><button class="btn ghost sm" data-act="pinnuevo" data-id="${esc(s.id)}">Nuevo PIN</button><button class="btn ghost sm ${s.activo?"danger":""}" data-act="estado" data-id="${esc(s.id)}">${s.activo?"Suspender":"Reactivar"}</button></div></td></tr>`).join("")}
+  </tbody></table></div><p class="muted small" style="margin-top:.5rem">Al suspender a alguien ya no puede entrar ni enviar resultados; su historial se conserva. «Bienvenida» arma el mensaje con su liga, correo y PIN para mandarlo por WhatsApp.</p>`
+  :`<div class="empty">${DATA.sustentantes.length?"Nadie coincide con estos filtros.":"Todavía no das de alta a nadie. Usa «Dar de alta» para una persona o «Alta de varios» para pegar una lista."}</div>`}`;
+}
+const susById=id=>(DATA.sustentantes||[]).find(s=>s.id===id);
+function grupoSelect(id,val){ const gs=gruposTodos(); const otro=val&&!gs.includes(val);
+  return `<select class="in" id="${id}">${gs.map(g=>`<option ${val===g?"selected":""}>${esc(g)}</option>`).join("")}<option value="__otro">Otro…</option></select>`; }
+function formSusHTML(s){
+  return `<form id="f-sus" data-id="${s?esc(s.id):""}" style="display:grid;gap:.85rem">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>${s?"Editar sustentante":"Dar de alta"}</h3><button type="button" class="btn ghost sm" data-act="close" aria-label="Cerrar">✕</button></div>
+    <label class="f">Nombre completo<input class="in" id="s-nombre" value="${s?esc(s.nombre):""}" required></label>
+    <label class="f">Correo electrónico<input class="in" id="s-correo" type="email" value="${s?esc(s.correo):""}" required></label>
+    <label class="f">Grupo${grupoSelect("s-grupo",s&&s.grupo)}</label>
+    <label class="f" id="s-otro-w" hidden>Nombre del grupo<input class="in" id="s-otro"></label>
+    <label class="f">PIN <span class="muted" style="font-weight:400">${s?"Déjalo vacío para conservar el actual":"Déjalo vacío para generar uno al azar"}</span><input class="in pin" id="s-pin" inputmode="numeric" maxlength="6" placeholder="••••••"></label>
+    <p class="small" id="s-err" style="color:var(--bad)" hidden></p>
+    <div class="row"><button type="button" class="btn" data-act="close">Cancelar</button><button class="btn primary" type="submit" id="s-btn">${s?"Guardar cambios":"Dar de alta"}</button></div>
+  </form>`;
+}
+function mensaje(s){ return `Hola ${s.nombre.split(" ")[0]}, ya tienes acceso al Simulador Cédula A de Grupo Asesores RAM.\n\nEntra aquí: ${URL_SIM}\nCorreo: ${s.correo}\nPIN: ${s.pin}\n\nPractica por tema y presenta simulacros completos; tus resultados me llegan para darte seguimiento. ¡Mucho éxito!`; }
+function bienvHTML(s,titulo){
+  const m=mensaje(s);
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><div class="eyebrow">${esc(s.grupo)}</div><h3 style="margin-top:.2rem">${esc(titulo||s.nombre)}</h3><p class="muted small">${esc(s.correo)}</p></div><button class="btn ghost sm" data-act="close" aria-label="Cerrar">✕</button></div>
+    <div class="pinbox">${esc(s.pin)}</div>
+    <label class="f">Mensaje de bienvenida<textarea class="in" id="b-msg" readonly>${esc(m)}</textarea></label>
+    <div class="row"><a class="btn" href="https://wa.me/?text=${encodeURIComponent(m)}" target="_blank" rel="noopener">Abrir en WhatsApp</a><button class="btn primary" data-act="copiar" data-src="b-msg">Copiar mensaje</button></div>`;
+}
+function masivaHTML(){
+  return `<form id="f-masiva" style="display:grid;gap:.85rem">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>Alta de varios</h3><button type="button" class="btn ghost sm" data-act="close" aria-label="Cerrar">✕</button></div>
+    <p class="muted small">Pega una persona por renglón: <b>Nombre completo, correo, grupo</b>. También puedes copiar tres columnas desde Excel o Sheets. Si no pones grupo, se usa el que elijas abajo. A cada quien se le genera un PIN.</p>
+    <textarea class="in" id="m-lista" placeholder="Ana Torres, ana.torres@correo.com, GAR Querétaro&#10;Luis Méndez, luis@correo.com"></textarea>
+    <label class="f">Grupo por defecto${grupoSelect("m-grupo","")}</label>
+    <p class="small" id="m-err" style="color:var(--bad)" hidden></p>
+    <div class="row"><button type="button" class="btn" data-act="close">Cancelar</button><button class="btn primary" type="submit" id="m-btn">Dar de alta</button></div>
+  </form>`;
+}
+function masivaResHTML(r){
+  const txt=r.creados.map(s=>`${s.nombre} · ${s.correo} · PIN ${s.pin}`).join("\n");
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>${r.creados.length} alta${r.creados.length===1?"":"s"} lista${r.creados.length===1?"":"s"}</h3><button class="btn ghost sm" data-act="close" aria-label="Cerrar">✕</button></div>
+    ${r.creados.length?`<label class="f">Accesos generados<textarea class="in" id="r-lista" readonly>${esc(txt)}</textarea></label>
+    <p class="muted small">Desde la pestaña Accesos, «Bienvenida» arma el mensaje de cada persona con su liga.</p>`:""}
+    ${r.omitidos.length?`<div><div class="eyebrow" style="margin-bottom:.4rem">No se dieron de alta (${r.omitidos.length})</div>${r.omitidos.map(o=>`<p class="small"><b>${esc(o.nombre||o.correo||"(renglón vacío)")}</b> <span class="muted">· ${esc(o.motivo)}</span></p>`).join("")}</div>`:""}
+    <div class="row">${r.creados.length?`<button class="btn" data-act="copiar" data-src="r-lista">Copiar accesos</button>`:""}<button class="btn primary" data-act="close">Listo</button></div>`;
+}
+function leerGrupo(sel,otro){ const v=$("#"+sel).value; if(v!=="__otro") return v; const o=$("#"+otro); return o&&o.tagName==="INPUT"?o.value.trim():""; }
+function upsertSus(s){ const i=DATA.sustentantes.findIndex(x=>x.id===s.id); if(i>=0) DATA.sustentantes[i]=s; else DATA.sustentantes.push(s); }
+function demoGuardar(d){
+  const n=d.nombre.trim().replace(/\s+/g," "), c=d.correo.trim().toLowerCase();
+  if(n.split(" ").length<2) throw new Error("Escribe nombre y apellido.");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) throw new Error("El correo no es válido.");
+  if(DATA.sustentantes.some(x=>x.correo===c&&x.id!==d.id)) throw new Error("Ya existe un sustentante con ese correo.");
+  const prev=d.id?susById(d.id):null;
+  return {sustentante:{...(prev||{id:"d"+Date.now(),activo:true,alta:new Date().toISOString(),ultimoAcceso:""}),nombre:n,correo:c,grupo:d.grupo,pin:d.pin||(prev?prev.pin:String(100000+Math.floor(Math.random()*900000)))}};
+}
+async function copiarDe(id){
+  const el=$("#"+id); const t=el.value;
+  try{ await navigator.clipboard.writeText(t); toast("Copiado. Pégalo en WhatsApp o correo."); }
+  catch(e){ el.focus(); el.select(); toast("Selecciona el texto y cópialo con Ctrl+C."); }
+}
+
 function detailHTML(correo){
   const all=DATA.intentos.filter(i=>i.correo===correo);
   const p=porPersona(all)[0]; if(!p) return "";
@@ -223,15 +330,52 @@ function openModal(inner,wide){ $("#layer").innerHTML=`<div class="scrim" data-a
 function closeModal(){ $("#layer").innerHTML=""; }
 let toastT; function toast(m){ clearTimeout(toastT); let el=$(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)} el.textContent=m; toastT=setTimeout(()=>el.remove(),2800); }
 
-document.addEventListener("submit",e=>{ if(e.target.id!=="login") return; e.preventDefault(); CLAVE=$("#clave").value; ses.set(CLAVE); render.err=""; $("#app").innerHTML=`<div class="empty" style="margin-top:40px">Cargando resultados…</div>`; cargar(); });
-document.addEventListener("input",e=>{ if(e.target.id==="f-q"){ F.q=e.target.value; const pos=e.target.selectionStart; render(); const el=$("#f-q"); el.focus(); el.setSelectionRange(pos,pos); } });
-document.addEventListener("change",e=>{ const id=e.target.id; if(id==="f-grupo")F.grupo=e.target.value; else if(id==="f-dias")F.dias=e.target.value; else if(id==="f-prac")F.practicas=e.target.checked; else if(id==="f-orden")F.orden=e.target.value; else return; render(); });
+document.addEventListener("submit",async e=>{
+  if(e.target.id==="f-sus"){
+    e.preventDefault(); const id=e.target.dataset.id||null, err=$("#s-err"), btn=$("#s-btn");
+    const d={id,nombre:$("#s-nombre").value,correo:$("#s-correo").value,grupo:leerGrupo("s-grupo","s-otro"),pin:$("#s-pin").value.trim()};
+    if(d.pin&&!/^\d{6}$/.test(d.pin)){ err.textContent="El PIN debe tener 6 dígitos."; err.hidden=false; return; }
+    btn.disabled=true;
+    try{ const r=DEMO?demoGuardar(d):await api("guardarSustentante",{sustentante:d}); upsertSus(r.sustentante); render();
+      if(id){ closeModal(); toast("Cambios guardados."); } else openModal(bienvHTML(r.sustentante,"Alta lista: "+r.sustentante.nombre));
+    }catch(x){ err.textContent=x.message; err.hidden=false; btn.disabled=false; }
+    return;
+  }
+  if(e.target.id==="f-masiva"){
+    e.preventDefault(); const err=$("#m-err"), btn=$("#m-btn"), def=leerGrupo("m-grupo","m-grupo");
+    const lista=$("#m-lista").value.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(/\t|,|;/).map(x=>x.trim()); return {nombre:p[0]||"",correo:p[1]||"",grupo:p[2]||def}; });
+    if(!lista.length){ err.textContent="Pega al menos un renglón."; err.hidden=false; return; }
+    btn.disabled=true; btn.textContent="Dando de alta…";
+    try{
+      let r;
+      if(DEMO){ r={creados:[],omitidos:[]}; lista.forEach(d=>{ try{ const x=demoGuardar(d).sustentante; upsertSus(x); r.creados.push(x);}catch(z){ r.omitidos.push({...d,motivo:z.message}); } }); }
+      else { r=await api("altaMasiva",{lista}); r.creados.forEach(upsertSus); }
+      render(); openModal(masivaResHTML(r));
+    }catch(x){ err.textContent=x.message; err.hidden=false; btn.disabled=false; btn.textContent="Dar de alta"; }
+    return;
+  }
+  if(e.target.id!=="login") return; e.preventDefault(); CLAVE=$("#clave").value; ses.set(CLAVE); render.err=""; $("#app").innerHTML=`<div class="empty" style="margin-top:40px">Cargando resultados…</div>`; cargar(); });
+document.addEventListener("input",e=>{ if(e.target.id==="f-qs"){ F.qs=e.target.value; const pos=e.target.selectionStart; render(); const el=$("#f-qs"); el.focus(); el.setSelectionRange(pos,pos); return; } if(e.target.id==="f-q"){ F.q=e.target.value; const pos=e.target.selectionStart; render(); const el=$("#f-q"); el.focus(); el.setSelectionRange(pos,pos); } });
+document.addEventListener("change",e=>{ const id=e.target.id; if(id==="f-grupo")F.grupo=e.target.value; else if(id==="f-dias")F.dias=e.target.value; else if(id==="f-prac")F.practicas=e.target.checked; else if(id==="f-orden")F.orden=e.target.value; else if(id==="f-gs")F.gs=e.target.value;
+  else if(id==="s-grupo"){ $("#s-otro-w").hidden=e.target.value!=="__otro"; return; }
+  else return; render(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.matches("tr.rowlink")) e.target.click(); if(e.key==="Escape") closeModal(); });
 document.addEventListener("click",async e=>{
   const el=e.target.closest("[data-act]"); if(!el) return; const act=el.dataset.act;
   if(act==="scrim"){ if(e.target===el) closeModal(); return; }
   if(act==="close") return closeModal();
   if(act==="ver") return openModal(detailHTML(el.dataset.id),true);
+  if(act==="tab"){ TAB=el.dataset.id; return render(); }
+  if(act==="alta") return openModal(formSusHTML(null));
+  if(act==="editar") return openModal(formSusHTML(susById(el.dataset.id)));
+  if(act==="masiva") return openModal(masivaHTML());
+  if(act==="bienv") return openModal(bienvHTML(susById(el.dataset.id)));
+  if(act==="copiar") return copiarDe(el.dataset.src);
+  if(act==="verpin"){ const id=el.dataset.id; VERPIN.has(id)?VERPIN.delete(id):VERPIN.add(id); return render(); }
+  if(act==="pinnuevo"){ const s=susById(el.dataset.id); return openModal(`<h3>¿Generar un PIN nuevo para ${esc(s.nombre)}?</h3><p class="muted">Su PIN actual dejará de funcionar. Tendrá que entrar con el nuevo.</p><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="pinok" data-id="${esc(s.id)}">Generar PIN</button></div>`); }
+  if(act==="pinok"){ el.disabled=true; try{ const r=DEMO?{sustentante:{...susById(el.dataset.id),pin:String(100000+Math.floor(Math.random()*900000))}}:await api("nuevoPin",{id:el.dataset.id}); upsertSus(r.sustentante); render(); openModal(bienvHTML(r.sustentante,"PIN nuevo para "+r.sustentante.nombre)); }catch(x){ closeModal(); toast(x.message); } return; }
+  if(act==="estado"){ const s=susById(el.dataset.id); return openModal(`<h3>¿${s.activo?"Suspender":"Reactivar"} a ${esc(s.nombre)}?</h3><p class="muted">${s.activo?"No podrá entrar al simulador ni enviar resultados. Su historial se conserva y puedes reactivarlo cuando quieras.":"Podrá volver a entrar con su mismo correo y PIN."}</p><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="estadook" data-id="${esc(s.id)}">${s.activo?"Suspender":"Reactivar"}</button></div>`); }
+  if(act==="estadook"){ const s=susById(el.dataset.id); el.disabled=true; try{ const r=DEMO?{sustentante:{...s,activo:!s.activo}}:await api("cambiarEstado",{id:s.id,activo:!s.activo}); upsertSus(r.sustentante); closeModal(); render(); toast(r.sustentante.activo?"Acceso reactivado.":"Acceso suspendido."); }catch(x){ closeModal(); toast(x.message); } return; }
   if(act==="refresh"){ toast("Actualizando…"); await cargar(); return toast("Resultados actualizados."); }
   if(act==="csv") return csv();
   if(act==="logout"){ CLAVE=null; ses.set(null); DATA=null; render.err=""; return render(); }
