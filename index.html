@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador Cédula A · GAR</title>
+<meta name="description" content="Simulador del examen de capacidad técnica de la CNSF para la Cédula A. Grupo Asesores RAM.">
+<link rel="icon" href="logo-gar.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="gar.css">
+<style>
+/* inicio */
+.hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:end;padding-block:34px 26px}
+.hero h1{font-size:clamp(2rem,5.4vw,3.3rem);font-weight:800;font-stretch:118%;margin-top:.5rem}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{margin-top:.8rem;max-width:58ch;color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--ink);color:#fff;border-radius:var(--r-l);overflow:hidden}
+.facts div{padding:1rem 1.1rem;border-right:1px solid var(--ink-3);border-bottom:1px solid var(--ink-3)}
+.facts div:nth-child(2n){border-right:0}
+.facts div:nth-last-child(-n+2){border-bottom:0}
+.facts b{display:block;font-family:var(--mono);font-size:1.45rem;font-weight:600;color:#fff}
+.facts span{font-size:.78rem;color:var(--on-ink-2)}
+.sec{padding-top:30px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.sec-h h2{font-size:1.45rem;font-weight:780}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.mode{display:flex;flex-direction:column;gap:.7rem}
+.mode.feature{border:2px solid var(--accent)}
+.mode h3{font-size:1.35rem;font-weight:780}
+.mode p{color:var(--muted);font-size:.92rem}
+.modlist{display:grid;gap:.45rem;margin:0;padding:0;list-style:none}
+.modlist li{display:flex;justify-content:space-between;gap:10px;font-size:.9rem;border-bottom:1px dashed var(--line);padding-bottom:.4rem}
+.modlist li:last-child{border-bottom:0}
+.modgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.modcard{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-m);padding:.85rem;display:flex;flex-direction:column;gap:.35rem;text-align:left}
+.modcard:hover{border-color:var(--accent)}
+.modcard .code{font-family:var(--mono);font-size:.72rem;color:var(--accent-ink)}
+.modcard b{font-stretch:110%;font-size:1rem;line-height:1.2}
+.modcard small{color:var(--muted);font-size:.78rem}
+.practice-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.chip{border:1.5px solid var(--line-2);background:var(--surface);border-radius:999px;padding:.35rem .8rem;font-size:.85rem;font-weight:550;display:inline-flex;gap:.4rem;align-items:center}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+.chip .n{font-family:var(--mono);font-size:.7rem;opacity:.75}
+.progress{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.progress h3{font-size:1.05rem;margin-bottom:.8rem}
+
+/* registro */
+.auth{min-height:calc(100vh - 140px);display:grid;place-items:center;padding-block:28px}
+.auth .card{max-width:440px;width:100%;padding:1.6rem;display:grid;gap:1rem}
+.auth h1{font-size:1.65rem;font-weight:800}
+
+/* examen: hoja de respuestas */
+.exam{display:grid;grid-template-columns:minmax(0,1fr) 284px;gap:20px;padding-top:22px}
+.qhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.qhead h2{font-size:1.3rem;margin-top:.25rem}
+.qcard{padding:1.4rem}
+.qnum{font-family:var(--mono);font-size:.82rem;color:var(--accent-ink);font-weight:600}
+.qtext{font-size:1.18rem;line-height:1.45;margin:.5rem 0 1.1rem;font-weight:550;max-width:65ch}
+.opts{display:grid;gap:.6rem}
+.opt{display:grid;grid-template-columns:34px minmax(0,1fr);gap:.75rem;align-items:center;text-align:left;background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--r-m);padding:.75rem .9rem;font-size:.97rem;color:var(--text)}
+.opt:hover{border-color:var(--line-2)}
+.bub{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink-3);display:grid;place-items:center;font-weight:750;font-stretch:115%;font-size:.92rem;color:var(--muted);background:var(--surface)}
+.opt.sel{border-color:var(--fill)}
+.opt.sel .bub{background:var(--fill);border-color:var(--fill);color:var(--on-fill)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.right .bub{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .bub{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt[disabled]{cursor:default}
+.explain{margin-top:1rem;border-left:3px solid var(--accent);background:var(--accent-soft);padding:.75rem .9rem;border-radius:0 var(--r-s) var(--r-s) 0;font-size:.92rem;color:var(--text)}
+.qnav{display:flex;justify-content:space-between;gap:10px;margin-top:1.1rem;flex-wrap:wrap}
+.qnav .grp{display:flex;gap:.5rem;flex-wrap:wrap}
+.flagbtn[aria-pressed="true"]{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.sheet{position:sticky;top:84px;align-self:start;max-height:calc(100vh - 100px);overflow:auto;border-top:4px solid var(--accent)}
+.sheet .meta{font-size:.8rem;color:var(--muted);margin:.2rem 0 .8rem}
+.dots{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.dot{aspect-ratio:1;max-width:100%;border-radius:50%;border:1.5px solid var(--line-2);background:transparent;font-family:var(--mono);font-size:.62rem;color:var(--muted);display:grid;place-items:center;padding:0;position:relative}
+.dot.ans{background:var(--fill);border-color:var(--fill);color:var(--on-fill)}
+.dot.cur{outline:2px solid var(--accent);outline-offset:1px}
+.dot.flag::after{content:"";position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn);border:1.5px solid var(--surface)}
+.legend{display:flex;flex-wrap:wrap;gap:.7rem;font-size:.72rem;color:var(--muted);margin:.8rem 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px;border:1.5px solid var(--line-2)}
+.legend i.a{background:var(--fill);border-color:var(--fill)} .legend i.f{background:var(--warn);border-color:var(--warn)}
+.sheet .btn{width:100%}
+
+/* resultados */
+.res-head{padding-block:30px 20px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--ink)}
+.res-head h1{font-size:clamp(1.8rem,4.6vw,2.7rem);font-weight:800}
+.modres{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mr{display:grid;gap:.45rem;border-top:4px solid var(--line-2)}
+.mr.ok{border-top-color:var(--ok)} .mr.warn{border-top-color:var(--warn)} .mr.bad{border-top-color:var(--bad)}
+.mr .code{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+.mr b{font-stretch:110%;font-size:1.02rem;line-height:1.2}
+.mr .big{font-family:var(--mono);font-size:2.1rem;font-weight:600;line-height:1}
+.mr .big small{font-size:.85rem;color:var(--muted);font-weight:500}
+.review{display:grid;gap:.6rem}
+.rv summary{cursor:pointer;display:flex;gap:.7rem;align-items:baseline;list-style:none}
+.rv summary::-webkit-details-marker{display:none}
+.rv .qn{font-family:var(--mono);font-size:.75rem;color:var(--bad);flex:none}
+.rv .qt{font-weight:550}
+.rv .ans{margin-top:.7rem;display:grid;gap:.35rem;font-size:.9rem}
+.rv .y{color:var(--bad)} .rv .c{color:var(--ok)}
+.rv .tag{font-size:.7rem;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:18px}
+.interlude{max-width:660px;margin:36px auto 0;display:grid;gap:.9rem;border-top:4px solid var(--accent);padding:1.6rem}
+.interlude h2{font-size:1.7rem;font-weight:800}
+.interlude ul{margin:0;padding-left:1.1rem;color:var(--muted);font-size:.92rem;display:grid;gap:.25rem}
+
+@media (max-width:880px){
+  .hero{grid-template-columns:1fr}
+  .exam{grid-template-columns:1fr}
+  .sheet{position:static;max-height:none}
+  .dots{grid-template-columns:repeat(10,minmax(0,1fr))}
+  .progress{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .g2,.modgrid{grid-template-columns:1fr}
+  .practice-form{grid-template-columns:1fr}
+  .qtext{font-size:1.05rem}
+  .qcard{padding:1rem}
+  .dots{grid-template-columns:repeat(8,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <button class="brand" id="home-link" type="button" aria-label="Ir al inicio">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span><b>Simulador Cédula A</b><small>Grupo Asesores RAM · Examen CNSF</small></span>
+    </button>
+    <div class="timer" id="timer" hidden><small>Tiempo</small><span id="timer-v">00:00</span></div>
+    <div class="chip-user" id="user-chip" hidden></div>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+<div id="layer"></div>
+
+<script src="banco.js"></script>
+<script>
+/* ═════════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN
+   API_URL: URL /exec de la aplicación web de Apps Script (Codigo.gs).
+            Si la dejas vacía, el simulador funciona igual pero los
+            resultados solo se guardan en el navegador del sustentante.
+   GRUPOS:  opciones que ve el sustentante al registrarse.
+   ═════════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  API_URL: '',
+  GRUPOS: ['GAR San Luis Potosí', 'GAR Querétaro', 'Proyecto Congresistas'],
+};
+
+// ── utilidades ──
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+const rint = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const money = v=>"$"+v.toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pctf = (v,d=2)=>(v*100).toLocaleString("es-MX",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const fmtTime = s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0")};
+const LET = ["A","B","C","D"];
+const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+const nowLabel = d=>d.toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
+function level(p){ if(p>=.8) return {k:"ok",t:"Nivel 2"}; if(p>=.6) return {k:"warn",t:"Nivel 1"}; return {k:"bad",t:"No acredita"}; }
+function lvlClass(p){ return p==null?"lvl-none":p>=.8?"lvl-ok":p>=.6?"lvl-warn":"lvl-bad"; }
+const store = {
+  get(k,d){ try{const v=localStorage.getItem("garCedA:"+k);return v?JSON.parse(v):d}catch(e){return d} },
+  set(k,v){ try{localStorage.setItem("garCedA:"+k,JSON.stringify(v))}catch(e){} }
+};
+
+// ── reactivos de cálculo generados ──
+function uniq4(correct, ds, fmt, jitter){
+  const out=[correct]; const seen=new Set([fmt(correct)]);
+  for(const d of ds){ if(d>0 && !seen.has(fmt(d))){out.push(d);seen.add(fmt(d))} if(out.length===4)break; }
+  let k=1; while(out.length<4){ const d=jitter(correct,k++); if(d>0&&!seen.has(fmt(d))){out.push(d);seen.add(fmt(d))} }
+  return out.map(fmt);
+}
+const GEN = [
+  function interesSimple(){
+    const C=rint(4,40)*5000, i=pick([6,8,9,10,12,15,18])/100, t=pick([3,4,6,8,9,10,18]);
+    const I=C*i*t/12;
+    return {q:`¿Cuánto interés simple genera un capital de ${money(C)} a una tasa de ${pctf(i,0)} anual durante ${t} meses?`,
+      o:uniq4(I,[C*i, C*i*t, C*i*t/12+C],money,(c,k)=>c*(1+.1*k)),
+      e:`I = C × i × t = ${money(C)} × ${i} × (${t}/12) = ${money(I)}. El tiempo se expresa en años porque la tasa es anual.`};
+  },
+  function montoSimple(){
+    const C=rint(4,40)*5000, i=pick([6,8,10,12,15])/100, t=pick([6,9,18,24,30]);
+    const M=C*(1+i*t/12);
+    return {q:`Se invierten ${money(C)} a interés simple de ${pctf(i,0)} anual. ¿Cuál es el monto al cabo de ${t} meses?`,
+      o:uniq4(M,[C*i*t/12, C*Math.pow(1+i,t/12), C*(1+i)],money,(c,k)=>c*(1+.05*k)),
+      e:`M = C (1 + i t) = ${money(C)} × (1 + ${i} × ${t}/12) = ${money(M)}.`};
+  },
+  function montoCompuesto(){
+    const C=rint(4,30)*5000, i=pick([5,6,8,10,12])/100, n=rint(2,5);
+    const M=C*Math.pow(1+i,n);
+    return {q:`¿Cuál será el monto de ${money(C)} invertidos a una tasa de ${pctf(i,0)} anual capitalizable anualmente durante ${n} años?`,
+      o:uniq4(M,[C*(1+i*n), C*Math.pow(1+i,n-1), M-C],money,(c,k)=>c*(1+.04*k)),
+      e:`M = C (1 + i)ⁿ = ${money(C)} × (1 + ${i})^${n} = ${money(M)}. Con interés compuesto, los intereses generan intereses.`};
+  },
+  function compuestoMensual(){
+    const C=rint(4,30)*5000, j=pick([6,9,12,18])/100, y=pick([1,2,3]);
+    const M=C*Math.pow(1+j/12,12*y);
+    return {q:`Se depositan ${money(C)} a una tasa nominal de ${pctf(j,0)} anual capitalizable mensualmente. ¿Cuál es el monto al cabo de ${y} año${y>1?"s":""}?`,
+      o:uniq4(M,[C*Math.pow(1+j,y), C*(1+j*y), C*Math.pow(1+j/12,y)],money,(c,k)=>c*(1+.03*k)),
+      e:`Tasa mensual = ${j}/12 = ${(j/12).toFixed(4)}; periodos = ${12*y}. M = ${money(C)} × (1 + ${(j/12).toFixed(4)})^${12*y} = ${money(M)}.`};
+  },
+  function valorPresente(){
+    const M=rint(10,60)*5000, i=pick([5,6,8,10,12])/100, n=rint(2,5);
+    const C=M/Math.pow(1+i,n);
+    return {q:`¿Qué cantidad debe invertirse hoy a ${pctf(i,0)} anual capitalizable anualmente para reunir ${money(M)} dentro de ${n} años?`,
+      o:uniq4(C,[M/(1+i*n), M*Math.pow(1+i,-(n-1)), M*(1-i*n)],money,(c,k)=>c*(1-.04*k)),
+      e:`Valor presente: C = M / (1 + i)ⁿ = ${money(M)} / (1 + ${i})^${n} = ${money(C)}.`};
+  },
+  function tasaReal(){
+    let r,p; do{ r=rint(9,16)/100; p=rint(3,8)/100; }while(r<=p+0.02);
+    const real=(1+r)/(1+p)-1; const f=v=>pctf(v,2);
+    return {q:`Una inversión rinde ${pctf(r,0)} nominal anual y la inflación del periodo fue de ${pctf(p,0)}. ¿Cuál es la tasa real?`,
+      o:uniq4(real,[r+p,(1+r)*(1+p)-1,r],f,(c,k)=>c+.011*k),
+      e:`Tasa real = (1 + nominal) / (1 + inflación) − 1 = (1 + ${r}) / (1 + ${p}) − 1 = ${f(real)}. La resta simple (${pctf(r-p,0)}) es solo una aproximación.`};
+  },
+  function aDecimal(){
+    const v=pick([0.5,1.25,2.5,4.75,7.5,12.5,16,35,0.75,3.2]);
+    const f=x=>x.toLocaleString("es-MX",{maximumFractionDigits:6}); const d=v/100;
+    return {q:`La notación decimal que corresponde a ${v.toLocaleString("es-MX")}% es:`,
+      o:uniq4(d,[d*10,d/10,v],f,(c,k)=>c*(k+2)),
+      e:`Para pasar de porcentaje a decimal se divide entre 100: ${v.toLocaleString("es-MX")} ÷ 100 = ${f(d)}.`};
+  },
+  function aPorcentaje(){
+    const d=pick([0.045,0.0825,0.12,0.005,0.3,0.0675,1.15,0.016]);
+    const f=x=>x.toLocaleString("es-MX",{maximumFractionDigits:4})+"%"; const p=d*100;
+    return {q:`La notación porcentual que corresponde a ${d.toLocaleString("es-MX",{maximumFractionDigits:6})} es:`,
+      o:uniq4(p,[p*10,p/10,d],f,(c,k)=>c*(k+2)),
+      e:`Para pasar de decimal a porcentaje se multiplica por 100: ${d.toLocaleString("es-MX",{maximumFractionDigits:6})} × 100 = ${f(p)}.`};
+  },
+  function proporcion(){
+    const Y=pick([100000,200000,250000,500000]), tasa=pick([3,4,5,6,8])/1000, Z=Y*pick([1.5,2,3,4,0.5]);
+    const X=Y*tasa, P=X*Z/Y;
+    return {q:`Si a una suma asegurada de ${money(Y)} le corresponde una prima de ${money(X)}, ¿qué prima corresponde a una suma asegurada de ${money(Z)} con la misma tasa?`,
+      o:uniq4(P,[X*Y/Z, X+(Z-Y)/1000, P/2+X],money,(c,k)=>c*(1+.15*k)),
+      e:`Proporción directa (regla de tres): prima = ${money(X)} × ${money(Z)} / ${money(Y)} = ${money(P)}.`};
+  },
+  function razon(){
+    const tot=pick([20,25,40,50,80]), part=Math.round(tot*pick([.2,.25,.3,.35,.4,.45,.6,.75]));
+    const p=part/tot; const f=v=>pctf(v,0);
+    return {q:`Un agente cerró ${part} ventas de ${tot} citas. ¿Qué porcentaje de efectividad representa?`,
+      o:uniq4(p,[part/100,(tot-part)/tot,p/2],f,(c,k)=>c+.05*k),
+      e:`Razón = ${part} / ${tot} = ${p.toFixed(2)} → ${f(p)}.`};
+  },
+];
+let genSeq=0;
+function genCalc(){ const g=pick(GEN)(); return {id:"calc-g"+(++genSeq), t:"calc", s:"Cálculos financieros", q:g.q, o:g.o, e:g.e, gen:true}; }
+
+// ── armado ──
+function prep(q){ const order=shuffle([0,1,2,3]); return {...q, opts:order.map(i=>q.o[i]), correct:order.indexOf(0)}; }
+function drawTema(tid,n){ return tid==="calc" ? Array.from({length:n},()=>prep(genCalc())) : shuffle(byTema[tid]).slice(0,n).map(prep); }
+function buildModule(m){ const qs=m.temas.flatMap(t=>drawTema(t.id,t.n)); return {mod:m, qs, ans:Array(qs.length).fill(null), flags:Array(qs.length).fill(false), cur:0, timeLeft:modTime(m)*60}; }
+function grade(b){
+  const temas={}; let ok=0;
+  b.qs.forEach((q,i)=>{ const c=b.ans[i]===q.correct; if(c)ok++; temas[q.t]=temas[q.t]||[0,0]; temas[q.t][1]++; if(c)temas[q.t][0]++; });
+  return {ok,n:b.qs.length,temas};
+}
+
+// ── envío de resultados a la coordinación ──
+const Sync = {
+  state:"idle", // idle | sending | ok | queued | local
+  cola(){ return store.get("cola",[]); },
+  async enviar(intento){
+    if(!CONFIG.API_URL){ this.state="local"; return; }
+    const cola=this.cola(); cola.push(intento); store.set("cola",cola);
+    await this.vaciar();
+  },
+  async vaciar(){
+    if(!CONFIG.API_URL) return;
+    let cola=this.cola(); if(!cola.length) return;
+    this.state="sending"; paintSync();
+    for(const it of cola.slice()){
+      try{
+        const r=await fetch(CONFIG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"guardarIntento",intento:it})});
+        const j=await r.json();
+        if(!j.ok) throw new Error(j.error||"Error del servidor");
+        cola=this.cola().filter(x=>x.id!==it.id); store.set("cola",cola);
+      }catch(e){ this.state="queued"; this.err=/fetch|network|offline|conexi/i.test(e.message)?"sin conexión":e.message; paintSync(); return; }
+    }
+    this.state="ok"; paintSync();
+  }
+};
+function syncHTML(){
+  const s=Sync.state;
+  if(s==="local") return `<div class="banner info" id="sync">Este simulador aún no está conectado a la hoja de resultados; tu intento se guardó solo en este navegador.</div>`;
+  if(s==="sending") return `<div class="banner info" id="sync">Enviando tu resultado a la coordinación GAR…</div>`;
+  if(s==="ok") return `<div class="banner ok" id="sync">✓ Tu resultado se envió a la coordinación GAR.</div>`;
+  if(s==="queued") return `<div class="banner warn" id="sync">No se pudo enviar tu resultado (${esc(Sync.err||"sin conexión")}). Quedó guardado y se enviará automáticamente. <button class="btn sm" data-act="retrysync">Reintentar ahora</button></div>`;
+  return `<div id="sync"></div>`;
+}
+function paintSync(){ const el=$("#sync"); if(el) el.outerHTML=syncHTML(); }
+
+// ── estado ──
+let S={view:"home"}; let lastKey=null; let tick=null;
+const PRACTICE_SEL=new Set(["mj"]);
+const perfil=()=>store.get("perfil",null);
+
+function setTimer(on){
+  clearInterval(tick); $("#timer").hidden=!on; if(!on) return;
+  const upd=()=>{ const b=S.run.blocks[S.run.bi]; $("#timer-v").textContent=fmtTime(b.timeLeft); $("#timer").classList.toggle("low",b.timeLeft<=300); };
+  upd(); tick=setInterval(()=>{ const b=S.run.blocks[S.run.bi]; b.timeLeft--; upd(); if(b.timeLeft<=0){ clearInterval(tick); finishBlock(true); } },1000);
+}
+
+function render(){
+  const p=perfil();
+  if(!p && S.view!=="registro"){ S.after=S.view; S.view="registro"; }
+  const key=[S.view,S.run&&S.run.bi,S.view==="exam"&&S.run.blocks[S.run.bi].cur,S.view==="practice"&&S.prac.cur].join(":");
+  if(key!==lastKey){ window.scrollTo(0,0); lastKey=key; }
+  const v={home:homeHTML,registro:registroHTML,intro:introHTML,exam:examHTML,blockdone:blockDoneHTML,results:resultsHTML,practice:practiceHTML}[S.view];
+  $("#app").innerHTML=v();
+  const chip=$("#user-chip");
+  chip.hidden=!p||S.view==="exam"||S.view==="practice"||S.view==="registro";
+  if(p) chip.innerHTML=`<span class="lbl">Sustentante:</span><b>${esc(p.nombre.split(" ")[0])}</b><button data-act="perfil">Cambiar</button>`;
+}
+
+function registroHTML(){
+  const p=perfil()||{};
+  const otros=p.grupo&&!CONFIG.GRUPOS.includes(p.grupo);
+  return `<section class="auth"><form class="card" id="reg" novalidate>
+    <img class="gar-logo" src="logo-gar.png" alt="Grupo Asesores RAM">
+    <div><div class="eyebrow">Simulador Cédula A</div><h1 style="margin-top:.35rem">${p.nombre?"Actualiza tus datos":"Regístrate para comenzar"}</h1>
+    <p class="muted small" style="margin-top:.45rem">Tus resultados se envían a la coordinación de GAR para darte seguimiento en tu preparación.</p></div>
+    <label class="f">Nombre completo<input class="in" id="r-nombre" autocomplete="name" value="${esc(p.nombre||"")}" required></label>
+    <label class="f">Correo electrónico<input class="in" id="r-correo" type="email" autocomplete="email" value="${esc(p.correo||"")}" required></label>
+    <label class="f">Grupo<select class="in" id="r-grupo">${CONFIG.GRUPOS.map(g=>`<option ${p.grupo===g?"selected":""}>${esc(g)}</option>`).join("")}<option value="__otro" ${otros?"selected":""}>Otro</option></select></label>
+    <label class="f" id="r-otro-w" ${otros?"":"hidden"}>¿Cuál?<input class="in" id="r-otro" value="${otros?esc(p.grupo):""}"></label>
+    <p class="small" id="r-err" style="color:var(--bad)" hidden></p>
+    <button class="btn primary" type="submit">${p.nombre?"Guardar":"Entrar al simulador"}</button>
+  </form></section>`;
+}
+
+function stats(){
+  const hist=store.get("hist",[]); const agg={}; TEMAS.forEach(t=>agg[t.id]={ok:0,n:0});
+  hist.forEach(h=>Object.entries(h.temas||{}).forEach(([k,v])=>{ if(agg[k]){agg[k].ok+=v[0];agg[k].n+=v[1]} }));
+  return {hist,agg};
+}
+function barHTML(name,p,extra=""){
+  return `<div class="bar"><span>${esc(name)}</span><span class="track"><span class="fill ${lvlClass(p)}" style="width:${p==null?0:Math.round(p*100)}%"></span><span class="tick"></span></span><span class="pct">${p==null?"—":Math.round(p*100)+"%"}${extra}</span></div>`;
+}
+
+function homeHTML(){
+  const {hist,agg}=stats(); const p=perfil();
+  const errs=store.get("errs",[]).filter(id=>bankById[id]);
+  const total=MODULES.reduce((s,m)=>s+m.temas.reduce((a,t)=>a+t.n,0),0), mins=MODULES.reduce((s,m)=>s+modTime(m),0);
+  const pend=Sync.cola().length;
+  return `
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Examen de capacidad técnica · CNSF</div>
+      <h1>${p?esc(p.nombre.split(" ")[0])+", prepárate":"Prepárate"} para tu <em>Cédula A</em></h1>
+      <p>Las mismas cuatro pruebas del examen real, con el mismo número de reactivos por tema y el mismo tiempo: un minuto por reactivo y tres en cálculos financieros. Cada prueba se califica por separado y se acredita con 60%.</p>
+    </div>
+    <div class="facts" aria-label="Datos del examen">
+      <div><b>${total}</b><span>reactivos en total</span></div>
+      <div><b>${fmtTime(mins*60)}</b><span>horas de examen</span></div>
+      <div><b>4</b><span>pruebas independientes</span></div>
+      <div><b>60% · 80%</b><span>Nivel 1 · Nivel 2</span></div>
+    </div>
+  </section>
+  ${pend?`<div class="banner warn">Tienes ${pend} resultado${pend>1?"s":""} pendiente${pend>1?"s":""} de enviar a la coordinación. <button class="btn sm" data-act="retrysync">Enviar ahora</button></div>`:""}
+
+  <section class="sec">
+    <div class="sec-h"><h2>Simulacros</h2><span class="muted small">${BANK.length} reactivos en el banco + cálculos generados al azar</span></div>
+    <div class="g2">
+      <div class="card mode feature">
+        <div class="eyebrow">Examen completo</div>
+        <h3>Simulacro Cédula A</h3>
+        <p>Las cuatro pruebas en el orden oficial, cada una con su cronómetro. Al terminar cada prueba ves tu resultado, como en la aplicación real.</p>
+        <ul class="modlist">${MODULES.map(m=>`<li><span>${esc(m.name)}</span><span class="mono muted">${m.temas.reduce((a,t)=>a+t.n,0)} · ${modTime(m)} min</span></li>`).join("")}</ul>
+        <div><button class="btn primary" data-act="full">Iniciar simulacro completo</button></div>
+      </div>
+      <div class="card mode">
+        <div class="eyebrow">Una prueba a la vez</div>
+        <h3>Simulacro por prueba</h3>
+        <p>Una sola prueba con su número de reactivos y tiempo reales. Ideal para reforzar el módulo que más se te dificulta.</p>
+        <div class="modgrid">${MODULES.map(m=>`<button class="modcard" data-act="mod" data-id="${m.id}"><span class="code">${m.id} · ${m.temas.reduce((a,t)=>a+t.n,0)} reactivos · ${modTime(m)} min</span><b>${esc(m.name)}</b><small>${m.temas.map(t=>esc(t.name)).join(" · ")}</small></button>`).join("")}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><h2>Práctica por tema</h2><span class="muted small">Sin cronómetro · respuesta y explicación al instante</span></div>
+    <div class="card practice-form">
+      <div><div class="eyebrow" style="margin-bottom:.6rem">Elige uno o varios temas</div>
+        <div class="chips">${TEMAS.map(t=>`<button class="chip" data-act="chip" data-id="${t.id}" aria-pressed="${PRACTICE_SEL.has(t.id)}">${esc(t.name)}<span class="n">${t.id==="calc"?"∞":byTema[t.id].length}</span></button>`).join("")}</div></div>
+      <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+        <label class="f">Reactivos<select class="in" id="pcount" style="width:auto"><option>10</option><option selected>20</option><option>40</option><option value="all">Todos</option></select></label>
+        <button class="btn primary" data-act="practice">Practicar</button>
+      </div>
+    </div>
+    ${errs.length?`<div class="actions"><button class="btn dark" data-act="errs">Repasar mis errores (${errs.length})</button></div>`:""}
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><h2>Tu avance</h2></div>
+    ${hist.length?`<div class="progress">
+      <div class="card"><h3>Dominio por tema</h3><div class="bars">${TEMAS.map(t=>{const a=agg[t.id];return barHTML(t.name,a.n?a.ok/a.n:null)}).join("")}</div>
+        <p class="muted small" style="margin-top:.8rem">Acumulado de tus intentos en este dispositivo. La marca vertical indica el 60% para acreditar.</p></div>
+      <div class="card"><h3>Últimos intentos</h3><div class="tablewrap" style="border:0"><table class="t"><thead><tr><th>Fecha</th><th>Tipo</th><th>Resultado</th></tr></thead><tbody>
+        ${hist.slice(-8).reverse().map(h=>`<tr><td class="mono small">${esc(h.date)}</td><td>${esc(h.label)}</td><td>${(h.mods||[]).length?h.mods.map(m=>{const p=m.ok/m.n,l=level(p);return `<div style="display:flex;gap:.4rem;justify-content:space-between;align-items:center;margin-bottom:3px"><span class="mono small">${m.id} ${Math.round(p*100)}%</span><span class="pill ${l.k}">${l.t}</span></div>`}).join(""):`<span class="mono small">${h.ok}/${h.n} · ${Math.round(h.ok/h.n*100)}%</span>`}</td></tr>`).join("")}
+      </tbody></table></div></div>
+    </div>`:`<div class="empty">Aquí verás tu dominio por tema y el historial de tus intentos en cuanto termines el primero.</div>`}
+  </section>
+  ${footHTML()}`;
+}
+function footHTML(){ return `<footer class="foot"><img src="logo-gar.png" alt="Grupo Asesores RAM"><p>Reactivos de práctica elaborados por Grupo Asesores RAM con base en las guías de estudio de la CNSF y la estructura de la Categoría A del Centro de Evaluación para Intermediarios. No son reactivos oficiales. Consulta siempre la normativa vigente: LISF, Ley sobre el Contrato de Seguro, Reglamento de Agentes de Seguros y de Fianzas y Circular Única de Seguros y Fianzas.</p></footer>`; }
+
+function introHTML(){
+  const mods=S.pending, mins=mods.reduce((s,m)=>s+modTime(m),0);
+  return `<div class="card interlude">
+    <div class="eyebrow">${mods.length>1?"Simulacro completo":"Simulacro por prueba"}</div>
+    <h2>${mods.length>1?"Cédula A · 4 pruebas":esc(mods[0].name)}</h2>
+    <ul>
+      <li>${mods.reduce((s,m)=>s+m.temas.reduce((a,t)=>a+t.n,0),0)} reactivos de opción múltiple con una sola respuesta correcta.</li>
+      <li>Tiempo total: <b class="mono">${fmtTime(mins*60)}</b>. Cada prueba tiene su propio cronómetro; al agotarse, se califica automáticamente.</li>
+      <li>Puedes moverte entre reactivos, cambiar respuestas y marcar los que quieras revisar.</li>
+      <li>Cada prueba se acredita con 60% (Nivel 1); con 80% o más obtienes Nivel 2.</li>
+      <li>En el examen real no se permite calculadora: practica los cálculos a mano.</li>
+    </ul>
+    <div class="actions" style="margin-top:.2rem"><button class="btn primary" data-act="start">Comenzar</button><button class="btn" data-act="home">Cancelar</button></div>
+  </div>`;
+}
+
+function examHTML(){
+  const r=S.run, b=r.blocks[r.bi], q=b.qs[b.cur], t=temaById[q.t];
+  const answered=b.ans.filter(a=>a!==null).length;
+  return `<div class="exam">
+    <div style="min-width:0">
+      <div class="qhead"><div><div class="eyebrow">Prueba ${r.bi+1} de ${r.blocks.length} · ${esc(b.mod.id)}</div><h2>${esc(b.mod.name)}</h2></div>
+        <span class="muted small">${esc(t.name)} · ${esc(q.s)}</span></div>
+      <div class="card qcard">
+        <div class="qnum">Reactivo ${b.cur+1} / ${b.qs.length}</div>
+        <p class="qtext">${esc(q.q)}</p>
+        <div class="opts" role="radiogroup" aria-label="Opciones de respuesta">
+          ${q.opts.map((o,i)=>`<button class="opt ${b.ans[b.cur]===i?"sel":""}" role="radio" aria-checked="${b.ans[b.cur]===i}" data-act="ans" data-i="${i}"><span class="bub">${LET[i]}</span><span>${esc(o)}</span></button>`).join("")}
+        </div>
+        <div class="qnav">
+          <div class="grp"><button class="btn" data-act="prev" ${b.cur===0?"disabled":""}>← Anterior</button><button class="btn flagbtn" data-act="flag" aria-pressed="${b.flags[b.cur]}">${b.flags[b.cur]?"Marcado para revisar":"Marcar para revisar"}</button></div>
+          <div class="grp">${b.cur<b.qs.length-1?`<button class="btn primary" data-act="next">Siguiente →</button>`:`<button class="btn primary" data-act="finish">Terminar prueba</button>`}</div>
+        </div>
+      </div>
+      <p class="muted small" style="margin-top:.6rem">Atajos de teclado: A–D o 1–4 para responder, flechas ← → para moverte.</p>
+    </div>
+    <aside class="card sheet" aria-label="Hoja de respuestas">
+      <div class="eyebrow">Hoja de respuestas</div>
+      <div class="meta"><span class="mono">${answered}/${b.qs.length}</span> contestados · folio <span class="mono">${r.folio}</span></div>
+      <div class="dots">${b.qs.map((_,i)=>`<button class="dot ${b.ans[i]!==null?"ans":""} ${i===b.cur?"cur":""} ${b.flags[i]?"flag":""}" data-act="go" data-i="${i}" aria-label="Ir al reactivo ${i+1}">${i+1}</button>`).join("")}</div>
+      <div class="legend"><span><i class="a"></i>Contestado</span><span><i></i>Pendiente</span><span><i class="f"></i>Marcado</span></div>
+      <button class="btn dark" data-act="finish">Terminar prueba</button>
+    </aside>
+  </div>`;
+}
+
+function blockDoneHTML(){
+  const r=S.run, b=r.blocks[r.bi], g=grade(b), p=g.ok/g.n, l=level(p), next=r.blocks[r.bi+1];
+  return `<div class="card interlude">
+    <div class="eyebrow">Prueba ${r.bi+1} de ${r.blocks.length} · ${esc(b.mod.id)}${b.timeout?" · tiempo agotado":""}</div>
+    <h2>${esc(b.mod.name)}</h2>
+    <div style="display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap"><span class="mono" style="font-size:2.8rem;font-weight:600">${Math.round(p*100)}%</span><span class="mono muted">${g.ok} de ${g.n} aciertos</span><span class="pill ${l.k}">${l.t}</span></div>
+    <div class="bars">${b.mod.temas.map(t=>{const v=g.temas[t.id]||[0,0];return barHTML(t.name,v[1]?v[0]/v[1]:null)}).join("")}</div>
+    <div class="actions" style="margin-top:.2rem">${next?`<button class="btn primary" data-act="nextblock">Continuar con ${esc(next.mod.name)}</button>`:`<button class="btn primary" data-act="toresults">Ver resultados completos</button>`}</div>
+  </div>`;
+}
+
+function resultsHTML(){
+  const r=S.run, grades=r.blocks.map(grade), isPr=r.mode==="practice";
+  const allPass=grades.every(g=>g.ok/g.n>=.6);
+  const wrong=[]; r.blocks.forEach(b=>b.qs.forEach((q,i)=>{ if(b.ans[i]!==q.correct) wrong.push({q,your:b.ans[i],n:i+1,mod:b.mod.id}); }));
+  const sub={}; r.blocks.forEach(b=>b.qs.forEach((q,i)=>{ const k=temaById[q.t].name+" · "+q.s; sub[k]=sub[k]||[0,0]; sub[k][1]++; if(b.ans[i]===q.correct)sub[k][0]++; }));
+  const weak=Object.entries(sub).filter(([,v])=>v[1]>=2).map(([k,v])=>({k,p:v[0]/v[1],v})).sort((a,b)=>a.p-b.p).filter(x=>x.p<.8).slice(0,6);
+  const tAgg={}; grades.forEach(g=>Object.entries(g.temas).forEach(([k,v])=>{tAgg[k]=tAgg[k]||[0,0];tAgg[k][0]+=v[0];tAgg[k][1]+=v[1]}));
+  const g0=grades[0], p=perfil();
+  return `
+  <section class="res-head">
+    <div><div class="eyebrow">${isPr?"Práctica por tema":"Resultados del simulacro"} · ${esc(r.date)} · ${esc(p.nombre)}</div>
+      <h1 style="margin-top:.35rem">${isPr?`${g0.ok} de ${g0.n} correctas`:allPass?"Acreditas todas las pruebas":"Aún hay pruebas por acreditar"}</h1></div>
+    ${isPr?`<span class="pill ${level(g0.ok/g0.n).k}" style="font-size:1rem;padding:.3rem 1rem">${Math.round(g0.ok/g0.n*100)}%</span>`:`<span class="muted" style="font-weight:650">${grades.filter(g=>g.ok/g.n>=.6).length} de ${grades.length} pruebas acreditadas</span>`}
+  </section>
+  <div style="margin-top:16px">${syncHTML()}</div>
+  ${isPr?"":`<section class="sec"><div class="modres">${r.blocks.map((b,i)=>{const g=grades[i],pp=g.ok/g.n,l=level(pp);return `<div class="card mr ${l.k}"><span class="code">${b.mod.id}${b.timeout?" · tiempo agotado":""}</span><b>${esc(b.mod.name)}</b><span class="big">${Math.round(pp*100)}%<small> ${g.ok}/${g.n}</small></span><span class="pill ${l.k}" style="justify-self:start">${l.t}</span></div>`}).join("")}</div></section>`}
+  <section class="sec">
+    <div class="progress">
+      <div class="card"><h3>Resultado por tema</h3><div class="bars">${Object.entries(tAgg).map(([k,v])=>barHTML(temaById[k].name,v[0]/v[1])).join("")}</div></div>
+      <div class="card"><h3>Subtemas a reforzar</h3>${weak.length?`<div class="bars">${weak.map(w=>`<div class="bar" style="grid-template-columns:minmax(0,1fr) 64px"><span>${esc(w.k)}</span><span class="pct">${w.v[0]}/${w.v[1]}</span></div>`).join("")}</div>`:`<div class="empty">Sin subtemas débiles en este intento. ¡Buen trabajo!</div>`}</div>
+    </div>
+    <div class="actions">
+      ${wrong.some(w=>!w.q.gen)?`<button class="btn primary" data-act="retrywrong">Practicar los ${wrong.filter(w=>!w.q.gen).length} reactivos fallados</button>`:""}
+      <button class="btn" data-act="home">Volver al inicio</button>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="sec-h"><h2>Revisión de errores</h2><span class="muted small">${wrong.length} reactivo${wrong.length===1?"":"s"}</span></div>
+    ${wrong.length?`<div class="review">${wrong.map(w=>`<details class="card rv"><summary><span class="qn">${w.mod==="PRA"?"":w.mod+" "}#${w.n}</span><span class="qt">${esc(w.q.q)}</span></summary>
+      <div class="ans"><span class="tag">${esc(temaById[w.q.t].name)} · ${esc(w.q.s)}</span>
+      <span class="y">Tu respuesta: ${w.your===null?"sin contestar":esc(w.q.opts[w.your])}</span>
+      <span class="c">Correcta: ${esc(w.q.opts[w.q.correct])}</span>
+      <div class="explain">${esc(w.q.e)}</div></div></details>`).join("")}</div>`:`<div class="empty">No tuviste errores. Excelente.</div>`}
+  </section>
+  ${footHTML()}`;
+}
+
+function practiceHTML(){
+  const p=S.prac, q=p.qs[p.cur], a=p.ans[p.cur], answered=a!==null;
+  const ok=p.ans.filter((x,i)=>x!==null&&x===p.qs[i].correct).length, done=p.ans.filter(x=>x!==null).length;
+  return `<div style="max-width:800px;margin:0 auto;padding-top:22px">
+    <div class="qhead"><div><div class="eyebrow">Práctica · ${esc(p.label)}</div><h2>${esc(temaById[q.t].name)}</h2></div>
+      <span class="mono muted small">${ok} correctas de ${done}</span></div>
+    <div class="card qcard">
+      <div class="qnum">Reactivo ${p.cur+1} / ${p.qs.length} <span class="muted" style="font-weight:500">· ${esc(q.s)}</span></div>
+      <p class="qtext">${esc(q.q)}</p>
+      <div class="opts">${q.opts.map((o,i)=>{let c="";if(answered){if(i===q.correct)c="right";else if(i===a)c="wrong"}return `<button class="opt ${c}" data-act="pans" data-i="${i}" ${answered?"disabled":""}><span class="bub">${LET[i]}</span><span>${esc(o)}</span></button>`}).join("")}</div>
+      ${answered?`<div class="explain" aria-live="polite"><b>${a===q.correct?"Correcto.":"Incorrecto."}</b> ${esc(q.e)}</div>`:""}
+      <div class="qnav"><div class="grp"><button class="btn" data-act="pend">Terminar práctica</button></div>
+        <div class="grp">${answered?(p.cur<p.qs.length-1?`<button class="btn primary" data-act="pnext">Siguiente →</button>`:`<button class="btn primary" data-act="pend">Ver resultado</button>`):""}</div></div>
+    </div>
+  </div>`;
+}
+
+// ── flujos ──
+function startRun(mods){ S.pending=mods; S.view="intro"; render(); }
+function beginRun(){
+  const d=new Date();
+  S.run={mode:S.pending.length>1?"full":"module", blocks:S.pending.map(buildModule), bi:0, folio:String(rint(100000,999999)), date:nowLabel(d), started:Date.now(), label:S.pending.length>1?"Completo":"Prueba "+S.pending[0].id};
+  S.view="exam"; render(); setTimer(true);
+}
+function finishBlock(timeout){
+  const b=S.run.blocks[S.run.bi]; b.timeout=!!timeout; setTimer(false); closeModal();
+  if(S.run.bi===S.run.blocks.length-1) saveRun();
+  S.view="blockdone"; render();
+}
+function saveRun(){
+  const r=S.run, grades=r.blocks.map(grade), p=perfil();
+  const temas={}; grades.forEach(g=>Object.entries(g.temas).forEach(([k,v])=>{temas[k]=temas[k]||[0,0];temas[k][0]+=v[0];temas[k][1]+=v[1]}));
+  const isPr=r.mode==="practice";
+  const mods=isPr?[]:r.blocks.map((b,i)=>({id:b.mod.id,ok:grades[i].ok,n:grades[i].n}));
+  const ok=grades.reduce((s,g)=>s+g.ok,0), n=grades.reduce((s,g)=>s+g.n,0);
+  const hist=store.get("hist",[]); hist.push({date:r.date,label:isPr?"Práctica":r.label,mods,ok,n,temas}); store.set("hist",hist.slice(-80));
+  const errs=new Set(store.get("errs",[])); const vistos=[], fallados=[];
+  r.blocks.forEach(b=>b.qs.forEach((q,i)=>{ if(q.gen) return; vistos.push(q.id); if(b.ans[i]===q.correct) errs.delete(q.id); else { errs.add(q.id); fallados.push(q.id); } }));
+  store.set("errs",[...errs]);
+  Sync.state="idle";
+  Sync.enviar({id:uid(), nombre:p.nombre, correo:p.correo, grupo:p.grupo, tipo:isPr?"Práctica":r.label, modulos:mods, temas, aciertos:ok, reactivos:n,
+    duracionSeg:Math.round((Date.now()-r.started)/1000), vistos, fallados, tiempoAgotado:r.blocks.filter(b=>b.timeout).map(b=>b.mod.id)});
+}
+function startPractice(qs,label){
+  if(!qs.length){toast("Elige al menos un tema.");return}
+  S.prac={qs:qs.map(prep),ans:Array(qs.length).fill(null),cur:0,label,started:Date.now()}; S.view="practice"; render();
+}
+function endPractice(){
+  const p=S.prac, idx=p.ans.map((a,i)=>a!==null?i:-1).filter(i=>i>=0);
+  if(!idx.length){S.view="home";render();return}
+  S.run={mode:"practice",blocks:[{mod:{id:"PRA",name:"Práctica",temas:[]},qs:idx.map(i=>p.qs[i]),ans:idx.map(i=>p.ans[i]),flags:[]}],bi:0,date:nowLabel(new Date()),started:p.started};
+  saveRun(); S.view="results"; render();
+}
+
+// ── modal y avisos ──
+function openModal(inner){ $("#layer").innerHTML=`<div class="scrim" data-act="scrim"><div class="modal" role="dialog" aria-modal="true">${inner}</div></div>`; }
+function closeModal(){ $("#layer").innerHTML=""; }
+let toastT; function toast(m){ clearTimeout(toastT); let el=$(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)} el.textContent=m; toastT=setTimeout(()=>el.remove(),2800); }
+
+// ── eventos ──
+document.addEventListener("submit",e=>{
+  if(e.target.id!=="reg") return; e.preventDefault();
+  const nombre=$("#r-nombre").value.trim().replace(/\s+/g," "), correo=$("#r-correo").value.trim().toLowerCase();
+  let grupo=$("#r-grupo").value; if(grupo==="__otro") grupo=$("#r-otro").value.trim();
+  const err=$("#r-err"); const fail=m=>{err.textContent=m;err.hidden=false};
+  if(nombre.split(" ").length<2) return fail("Escribe tu nombre completo (nombre y apellido).");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return fail("Revisa tu correo electrónico.");
+  if(!grupo) return fail("Indica tu grupo.");
+  store.set("perfil",{nombre,correo,grupo});
+  S.view=(S.after&&S.after!=="registro")?S.after:"home"; S.after=null; render();
+});
+document.addEventListener("change",e=>{ if(e.target.id==="r-grupo"){ $("#r-otro-w").hidden=e.target.value!=="__otro"; } });
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]"); if(!el) return; const act=el.dataset.act;
+  if(act==="scrim"){ if(e.target===el) closeModal(); return; }
+  if(act==="close") return closeModal();
+  if(act==="home"){ setTimer(false); S.view="home"; return render(); }
+  if(act==="perfil"){ S.after="home"; S.view="registro"; return render(); }
+  if(act==="retrysync"){ Sync.vaciar().then(()=>{ if(S.view==="home") render(); }); return; }
+  if(act==="full") return startRun(MODULES);
+  if(act==="mod") return startRun([modById[el.dataset.id]]);
+  if(act==="start") return beginRun();
+  if(act==="chip"){ const id=el.dataset.id; PRACTICE_SEL.has(id)?PRACTICE_SEL.delete(id):PRACTICE_SEL.add(id); el.setAttribute("aria-pressed",PRACTICE_SEL.has(id)); return; }
+  if(act==="practice"){
+    const sel=[...PRACTICE_SEL]; if(!sel.length) return toast("Elige al menos un tema.");
+    const cnt=$("#pcount").value, onlyCalc=sel.length===1&&sel[0]==="calc";
+    const calcN=sel.includes("calc")?(onlyCalc?(cnt==="all"?20:+cnt):(cnt==="all"?20:Math.max(5,Math.round((+cnt)/sel.length)))):0;
+    const pool=shuffle(sel.filter(t=>t!=="calc").flatMap(t=>byTema[t]));
+    const n=onlyCalc?0:(cnt==="all"?pool.length:Math.max(0,(+cnt)-calcN));
+    return startPractice(shuffle([...pool.slice(0,n),...Array.from({length:calcN},genCalc)]), sel.map(t=>temaById[t].name).join(", "));
+  }
+  if(act==="errs"){ const ids=store.get("errs",[]).filter(id=>bankById[id]); return startPractice(shuffle(ids.map(id=>bankById[id])),"Mis errores"); }
+  if(act==="retrywrong"){ const ws=[]; S.run.blocks.forEach(b=>b.qs.forEach((q,i)=>{ if(b.ans[i]!==q.correct&&!q.gen) ws.push(bankById[q.id]); })); return startPractice(shuffle(ws),"Reactivos fallados"); }
+  if(S.view==="exam"){
+    const b=S.run.blocks[S.run.bi];
+    if(act==="ans"){ b.ans[b.cur]=+el.dataset.i; return render(); }
+    if(act==="next"&&b.cur<b.qs.length-1){ b.cur++; return render(); }
+    if(act==="prev"&&b.cur>0){ b.cur--; return render(); }
+    if(act==="go"){ b.cur=+el.dataset.i; return render(); }
+    if(act==="flag"){ b.flags[b.cur]=!b.flags[b.cur]; return render(); }
+    if(act==="finish"){
+      const pend=b.ans.filter(a=>a===null).length, fl=b.flags.filter(Boolean).length;
+      return openModal(`<h3>¿Terminar esta prueba?</h3><p class="muted">${pend?`Tienes <b>${pend}</b> reactivo${pend>1?"s":""} sin contestar; contarán como incorrectos.`:"Contestaste todos los reactivos."}${fl?` Hay ${fl} marcado${fl>1?"s":""} para revisar.`:""} Te quedan <b class="mono">${fmtTime(b.timeLeft)}</b>.</p><div class="row"><button class="btn" data-act="close">Seguir revisando</button><button class="btn primary" data-act="confirmfinish">Terminar y calificar</button></div>`);
+    }
+  }
+  if(act==="confirmfinish") return finishBlock(false);
+  if(act==="exitconfirm"){ closeModal(); setTimer(false); S.view="home"; return render(); }
+  if(act==="nextblock"){ S.run.bi++; S.view="exam"; render(); return setTimer(true); }
+  if(act==="toresults"){ S.view="results"; return render(); }
+  if(S.view==="practice"){
+    const p=S.prac;
+    if(act==="pans"&&p.ans[p.cur]===null){ p.ans[p.cur]=+el.dataset.i; return render(); }
+    if(act==="pnext"){ p.cur++; return render(); }
+    if(act==="pend") return endPractice();
+  }
+});
+$("#home-link").addEventListener("click",()=>{
+  if(S.view==="exam") return openModal(`<h3>¿Salir del simulacro?</h3><p class="muted">Perderás las respuestas de este intento y no se enviará resultado.</p><div class="row"><button class="btn" data-act="close">Continuar examen</button><button class="btn primary" data-act="exitconfirm">Salir</button></div>`);
+  if(S.view==="registro"&&!perfil()) return;
+  setTimer(false); S.view="home"; render();
+});
+document.addEventListener("keydown",e=>{
+  if(e.target.matches("input,select,textarea")||$("#layer").innerHTML) return;
+  const k=e.key.toUpperCase(), map={A:0,B:1,C:2,D:3,"1":0,"2":1,"3":2,"4":3};
+  if(S.view==="exam"){
+    const b=S.run.blocks[S.run.bi];
+    if(k in map){ b.ans[b.cur]=map[k]; render(); }
+    else if(e.key==="ArrowRight"&&b.cur<b.qs.length-1){ b.cur++; render(); }
+    else if(e.key==="ArrowLeft"&&b.cur>0){ b.cur--; render(); }
+  } else if(S.view==="practice"){
+    const p=S.prac;
+    if(k in map&&p.ans[p.cur]===null){ p.ans[p.cur]=map[k]; render(); }
+    else if((e.key==="Enter"||e.key==="ArrowRight")&&p.ans[p.cur]!==null){ if(p.cur<p.qs.length-1){p.cur++;render()} else endPractice(); }
+  }
+});
+window.addEventListener("beforeunload",e=>{ if(S.view==="exam"){ e.preventDefault(); e.returnValue=""; } });
+
+render();
+Sync.vaciar().then(()=>{ if(S.view==="home") render(); });
+</script>
+</body>
+</html>
