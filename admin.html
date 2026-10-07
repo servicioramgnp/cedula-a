@@ -60,7 +60,7 @@ tr.rowlink{cursor:pointer} tr.rowlink:hover td{background:var(--surface-2)}
    API_URL: la misma URL /exec que usa index.html.
    Si la dejas vacía, el tablero abre en MODO DEMOSTRACIÓN con datos ficticios.
    ═════════════════════════════════════════════════════════════════════ */
-const CONFIG = { API_URL: '' };
+const CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbxMP85Vt1nfOl86opVaQMcO_nLVs11MfgEwasrJSfiKGmqaQPfxlfR44Mo01qf0MNduJA/exec' };
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
